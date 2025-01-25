@@ -325,6 +325,15 @@ namespace dlib
             return initial_shape.size()/2;
         }
 
+        unsigned long num_forests (
+        ) const
+        {
+            unsigned long num = 0;
+            for (unsigned long iter = 0; iter < forests.size(); ++iter)
+                num += forests[iter].size();
+            return num;
+        }
+
         unsigned long num_features (
         ) const
         {
@@ -333,6 +342,73 @@ namespace dlib
                 for (unsigned long i = 0; i < forests[iter].size(); ++i)
                     num += forests[iter][i].num_leaves();
             return num;
+        }
+
+        template <typename image_type>
+        std::vector<std::vector<point>> get_all_shapes(
+            const image_type& img,
+            const rectangle& rect
+        ) const
+        {
+            using namespace impl;
+            matrix<float,0,1> current_shape = initial_shape;
+            std::vector<float> feature_pixel_values;
+            std::vector<std::vector<point>> all_shapes;
+            const point_transform_affine tform_to_img = unnormalizing_tform(rect);
+
+            // convert the current_shape into a full_object_detection
+            std::vector<point> parts(current_shape.size()/2);
+            for (unsigned long j = 0; j < parts.size(); ++j)
+                parts[j] = tform_to_img(location(current_shape, j));
+            all_shapes.push_back(parts);
+            
+            for (unsigned long iter = 0; iter < forests.size(); ++iter)
+            {
+                extract_feature_pixel_values(img, rect, current_shape, initial_shape,
+                                             anchor_idx[iter], deltas[iter], feature_pixel_values);
+                // evaluate all the trees at this level of the cascade.
+                for (unsigned long i = 0; i < forests[iter].size(); ++i)
+                {
+                    unsigned long leaf_idx;
+                    current_shape += forests[iter][i](feature_pixel_values, leaf_idx);
+                    
+                    // convert the current_shape into a full_object_detection
+                    std::vector<point> parts(current_shape.size()/2);
+                    for (unsigned long j = 0; j < parts.size(); ++j)
+                        parts[j] = tform_to_img(location(current_shape, j));
+                    all_shapes.push_back(parts);
+                }
+            }
+            return all_shapes;
+        }
+
+        template <typename image_type>
+        std::vector<unsigned long> get_feats(
+            const image_type& img,
+            const rectangle& rect
+        )
+        {
+            std::vector<unsigned long> feats;
+            feats.clear();
+            using namespace impl;
+            matrix<float,0,1> current_shape = initial_shape;
+            std::vector<float> feature_pixel_values;
+            unsigned long feat_offset = 0;
+            for (unsigned long iter = 0; iter < forests.size(); ++iter)
+            {
+                extract_feature_pixel_values(img, rect, current_shape, initial_shape,
+                                             anchor_idx[iter], deltas[iter], feature_pixel_values);
+                // evaluate all the trees at this level of the cascade.
+                for (unsigned long i = 0; i < forests[iter].size(); ++i)
+                {
+                    unsigned long leaf_idx;
+                    current_shape += forests[iter][i](feature_pixel_values, leaf_idx);
+
+                    feats.push_back(feat_offset+leaf_idx);
+                    feat_offset += forests[iter][i].num_leaves();
+                }
+            }
+            return feats;
         }
 
         template <typename image_type>

@@ -35,6 +35,62 @@ full_object_detection run_predictor (
     }
 }
 
+unsigned long num_parts (shape_predictor& predictor)
+{
+    return predictor.num_parts();
+}
+
+unsigned long num_forests (shape_predictor& predictor)
+{
+    return predictor.num_forests();
+}
+
+unsigned long num_features (shape_predictor& predictor)
+{
+    return predictor.num_features();
+}
+
+std::vector<unsigned long> get_feats (
+        shape_predictor& predictor,
+        py::array img,
+        const rectangle& box
+)
+{
+    if (is_image<unsigned char>(img))
+    {
+        return predictor.get_feats(numpy_image<unsigned char>(img), box);
+    }
+    else if (is_image<rgb_pixel>(img))
+    {
+        return predictor.get_feats(numpy_image<rgb_pixel>(img), box);
+    }
+    else
+    {
+        throw dlib::error("Unsupported image type, must be 8bit gray or RGB image.");
+    }
+}
+
+std::vector<std::vector<point>> get_all_shapes(
+        shape_predictor& predictor,
+        py::array img,
+        const rectangle& box
+)
+{
+    if (is_image<unsigned char>(img))
+    {
+        return predictor.get_all_shapes(numpy_image<unsigned char>(img), box);
+    }
+    else if (is_image<rgb_pixel>(img))
+    {
+        return predictor.get_all_shapes(numpy_image<rgb_pixel>(img), box);
+    }
+    else
+    {
+        throw dlib::error("Unsupported image type, must be 8bit gray or RGB image.");
+    }
+}
+
+
 void save_shape_predictor(const shape_predictor& predictor, const std::string& predictor_output_filename)
 {
     std::ofstream fout(predictor_output_filename.c_str(), std::ios::binary);
@@ -272,6 +328,11 @@ train_shape_predictor() routine.")
 ensures \n\
     - This function runs the shape predictor on the input image and returns \n\
       a single full_object_detection.")
+        .def("num_parts", &num_parts, "num_parts")
+        .def("num_forests", &num_forests, "num_forests")
+        .def("num_features", &num_features, "num_features")
+        .def("get_feats", &get_feats, "get_feats")
+        .def("get_all_shapes", &get_all_shapes, "get_all_shapes")
         .def("save", save_shape_predictor, py::arg("predictor_output_filename"), "Save a shape_predictor to the provided path.")
         .def(py::pickle(&getstate<type>, &setstate<type>));
     }

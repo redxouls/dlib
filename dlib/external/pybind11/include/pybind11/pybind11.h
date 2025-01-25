@@ -26,6 +26,8 @@
 #include <utility>
 #include <vector>
 
+#include <pybind11/stl.h>
+
 #if defined(__cpp_lib_launder) && !(defined(_MSC_VER) && (_MSC_VER < 1914))
 #    define PYBIND11_STD_LAUNDER std::launder
 #    define PYBIND11_HAS_STD_LAUNDER 1
